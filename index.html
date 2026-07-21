@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B20 — Base Network Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0027A6;
+    --deep:#0033CC;
+    --surface:#0040E0;
+    --surface-2:#0047F5;
+    --line: rgba(255,255,255,0.16);
+    --cyan:#5B8DFF;
+    --indigo:#0052FF;
+    --fog:#c2d2ff;
+    --paper:#ffffff;
+    --amber:#ffb454;
+    --green:#7CFFB2;
+    --red:#ff8a8a;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(91,141,255,0.25), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(0,82,255,0.35), transparent 55%),
+      var(--void);
+    color:var(--paper);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 40px;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;
+    background:rgba(6,12,28,0.85);
+    backdrop-filter:blur(10px);
+    z-index:50;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:9px;
+    background:linear-gradient(135deg,var(--cyan),var(--indigo));
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-weight:700;color:var(--void);font-size:15px;
+    box-shadow:0 0 24px rgba(91,141,255,0.35);
+  }
+  .brand-name{font-weight:700;font-size:20px;letter-spacing:0.5px;}
+  .brand-sub{font-family:var(--mono);font-size:11px;color:var(--fog);letter-spacing:1.5px;text-transform:uppercase;}
+  .status-pill{
+    display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:12px;color:var(--fog);
+    border:1px solid var(--line);padding:7px 14px;border-radius:100px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);}
+  .dot.bad{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .dot.wait{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:64px 40px 40px;
+    max-width:1200px;margin:0 auto;
+    position:relative;
+    overflow:hidden;
+  }
+  .scan-line{
+    position:absolute;left:0;right:0;height:1px;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:0.6;
+    animation:sweep 5s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes sweep{
+    0%{top:0%; opacity:0;}
+    10%{opacity:0.7;}
+    90%{opacity:0.7;}
+    100%{top:100%; opacity:0;}
+  }
+  .eyebrow{
+    font-family:var(--mono);font-size:12px;color:var(--cyan);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:18px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:'';width:22px;height:1px;background:var(--cyan);}
+  h1.hero-title{
+    font-size:clamp(40px,6vw,68px);
+    line-height:1.02;font-weight:700;margin:0 0 18px;
+    letter-spacing:-1px;
+  }
+  h1.hero-title span{
+    background:linear-gradient(90deg,var(--cyan),var(--indigo));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero-desc{color:var(--fog);font-size:16px;max-width:560px;line-height:1.6;margin-bottom:36px;}
+
+  .search-wrap{
+    display:flex;gap:10px;max-width:720px;
+  }
+  .search-input{
+    flex:1;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    color:var(--paper);
+    font-family:var(--mono);
+    font-size:14px;
+    outline:none;
+    transition:border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-input::placeholder{color:#a9bdfa;}
+  .search-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(91,141,255,0.12);}
+  .search-btn{
+    background:linear-gradient(135deg,var(--cyan),var(--indigo));
+    border:none;border-radius:10px;
+    padding:0 26px;
+    font-family:var(--sans);font-weight:600;font-size:14px;
+    color:var(--void);cursor:pointer;
+    transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .search-btn:hover{transform:translateY(-1px); box-shadow:0 6px 20px rgba(91,141,255,0.3);}
+  .search-hint{font-family:var(--mono);font-size:11px;color:#a9bdfa;margin-top:10px;}
+
+  /* ---------- stats ---------- */
+  .stats{
+    max-width:1200px;margin:0 auto;padding:0 40px 50px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+  }
+  .stat-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+  }
+  .stat-label{
+    font-family:var(--mono);font-size:11px;color:var(--fog);
+    text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;
+  }
+  .stat-value{
+    font-family:var(--mono);font-size:24px;font-weight:600;
+    color:var(--paper);
+  }
+  .stat-value.accent{color:var(--cyan);}
+  .stat-sub{font-family:var(--mono);font-size:11px;color:#a9bdfa;margin-top:6px;}
+
+  /* ---------- main grid ---------- */
+  .main{
+    max-width:1200px;margin:0 auto;padding:0 40px 80px;
+    display:grid;grid-template-columns:1fr;gap:24px;
+  }
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 22px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-title{font-weight:600;font-size:15px;display:flex;align-items:center;gap:10px;}
+  .panel-title .n{
+    font-family:var(--mono);font-size:11px;color:var(--void);
+    background:var(--cyan);padding:2px 8px;border-radius:6px;font-weight:700;
+  }
+  .live-tag{
+    font-family:var(--mono);font-size:10px;color:var(--green);
+    display:flex;align-items:center;gap:6px;letter-spacing:1px;
+  }
+
+  table{width:100%;border-collapse:collapse;}
+  thead th{
+    text-align:left;font-family:var(--mono);font-size:11px;color:var(--fog);
+    text-transform:uppercase;letter-spacing:1px;padding:12px 22px;
+    border-bottom:1px solid var(--line);font-weight:500;
+  }
+  tbody td{
+    padding:14px 22px;
+    font-family:var(--mono);font-size:13px;
+    border-bottom:1px solid var(--line);
+    color:var(--paper);
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{transition:background 0.15s;}
+  tbody tr:hover{background:rgba(91,141,255,0.04);}
+  .mono-link{color:var(--cyan);cursor:pointer;text-decoration:none;}
+  .mono-link:hover{text-decoration:underline;}
+  .badge{
+    display:inline-block;font-family:var(--mono);font-size:10px;
+    padding:3px 9px;border-radius:6px;letter-spacing:0.5px;
+  }
+  .badge.block{background:rgba(91,141,255,0.12);color:var(--cyan);}
+  .badge.tx{background:rgba(74,222,128,0.12);color:var(--green);}
+
+  .empty-state{padding:40px 22px;text-align:center;color:var(--fog);font-family:var(--mono);font-size:13px;}
+  .loading-row td{color:#a9bdfa;font-style:italic;}
+
+  /* ---------- detail card ---------- */
+  .detail{
+    padding:22px;
+    display:none;
+  }
+  .detail.show{display:block;}
+  .detail-row{
+    display:flex;justify-content:space-between;gap:20px;
+    padding:12px 0;border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:13px;
+  }
+  .detail-row:last-child{border-bottom:none;}
+  .detail-label{color:var(--fog);min-width:140px;}
+  .detail-value{color:var(--paper);word-break:break-all;text-align:right;}
+  .detail-value.accent{color:var(--cyan);}
+  .error-box{
+    padding:16px 22px;color:var(--red);font-family:var(--mono);font-size:13px;
+    background:rgba(255,107,107,0.08);border-radius:10px;margin:22px;
+  }
+
+  footer{
+    text-align:center;padding:30px;color:#7f9be0;
+    font-family:var(--mono);font-size:11px;
+    border-top:1px solid var(--line);
+  }
+  footer a{color:var(--cyan);text-decoration:none;}
+
+  @media (max-width: 800px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .topbar,.hero,.main,.stats{padding-left:20px;padding-right:20px;}
+    .detail-row{flex-direction:column;gap:4px;}
+    .detail-value{text-align:left;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">B2</div>
+    <div>
+      <div class="brand-name">B20</div>
+      <div class="brand-sub">Base Network Scanner</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="dot wait" id="statusDot"></div>
+    <span id="statusText">connecting to base…</span>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="scan-line"></div>
+  <div class="eyebrow">Live · Chain ID 8453 · OP Stack</div>
+  <h1 class="hero-title">Read Base<br><span>block by block.</span></h1>
+  <p class="hero-desc">B20 queries Base mainnet directly over public RPC — no middleman API, no key required. Paste an address, transaction hash, or block number to pull it straight from the chain.</p>
+  <div class="search-wrap">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search by address / txn hash / block number…">
+    <button class="search-btn" id="searchBtn">Scan</button>
+  </div>
+  <div class="search-hint" id="searchHint">e.g. 0x4200000000000000000000000000000000000006 (Base WETH), or a block number like 20000000</div>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-label">Latest Block</div>
+    <div class="stat-value accent" id="statBlock">—</div>
+    <div class="stat-sub" id="statBlockSub">syncing…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Gas Price</div>
+    <div class="stat-value" id="statGas">—</div>
+    <div class="stat-sub">gwei</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Block Time</div>
+    <div class="stat-value" id="statBlockTime">—</div>
+    <div class="stat-sub">seconds, rolling avg</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Network</div>
+    <div class="stat-value" style="font-size:18px;">Base Mainnet</div>
+    <div class="stat-sub">via mainnet.base.org</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="panel" id="resultPanel" style="display:none;">
+    <div class="panel-head">
+      <div class="panel-title">Scan Result</div>
+    </div>
+    <div id="resultBody"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Latest Blocks <span class="n" id="blockCount">0</span></div>
+      <div class="live-tag"><div class="dot"></div>LIVE</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Block</th><th>Age</th><th>Txns</th><th>Gas Used</th><th>Miner (Sequencer Fee Recipient)</th></tr>
+      </thead>
+      <tbody id="blocksBody">
+        <tr class="loading-row"><td colspan="5">Fetching latest blocks from Base…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  B20 — an independent Base network scanner. Reads public chain data via JSON-RPC (mainnet.base.org). Not affiliated with Coinbase or Basescan.
+</footer>
+
+<script>
+const RPC_URL = "https://mainnet.base.org";
+const state = { latestBlockNumber: null, blockTimes: [] };
+
+async function rpc(method, params = []) {
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
+  });
+  if (!res.ok) throw new Error("RPC HTTP error " + res.status);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || "RPC error");
+  return json.result;
+}
+
+function hexToDec(hex) {
+  if (hex === undefined || hex === null) return null;
+  return parseInt(hex, 16);
+}
+function weiHexToEth(hex) {
+  if (!hex) return "0";
+  const wei = BigInt(hex);
+  const eth = Number(wei) / 1e18;
+  return eth.toFixed(6);
+}
+function gweiFromHex(hex) {
+  if (!hex) return "0";
+  const wei = BigInt(hex);
+  const gwei = Number(wei) / 1e9;
+  return gwei.toFixed(4);
+}
+function shorten(str, n = 10) {
+  if (!str) return "";
+  if (str.length <= n * 2 + 3) return str;
+  return str.slice(0, n) + "…" + str.slice(-6);
+}
+function timeAgo(ts) {
+  const diff = Math.floor(Date.now() / 1000) - ts;
+  if (diff < 60) return diff + "s ago";
+  if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+  return Math.floor(diff / 3600) + "h ago";
+}
+
+function setStatus(mode, text) {
+  const dot = document.getElementById("statusDot");
+  const label = document.getElementById("statusText");
+  dot.className = "dot" + (mode === "bad" ? " bad" : mode === "wait" ? " wait" : "");
+  label.textContent = text;
+}
+
+async function loadBlock(blockNumHex) {
+  return rpc("eth_getBlockByNumber", [blockNumHex, true]);
+}
+
+async function refreshLatestBlocks() {
+  try {
+    const latestHex = await rpc("eth_blockNumber");
+    const latestNum = hexToDec(latestHex);
+    setStatus("ok", "connected · block " + latestNum.toLocaleString());
+
+    if (state.latestBlockNumber === latestNum) return; // no new block yet
+    state.latestBlockNumber = latestNum;
+
+    const gasPriceHex = await rpc("eth_gasPrice");
+    document.getElementById("statGas").textContent = gweiFromHex(gasPriceHex);
+
+    const count = 8;
+    const blocks = [];
+    for (let i = 0; i < count; i++) {
+      const num = latestNum - i;
+      if (num < 0) break;
+      const b = await loadBlock("0x" + num.toString(16));
+      if (b) blocks.push(b);
+    }
+
+    document.getElementById("statBlock").textContent = latestNum.toLocaleString();
+    if (blocks[0]) {
+      document.getElementById("statBlockSub").textContent = timeAgo(hexToDec(blocks[0].timestamp));
+    }
+
+    if (blocks.length >= 2) {
+      const diffs = [];
+      for (let i = 0; i < blocks.length - 1; i++) {
+        diffs.push(hexToDec(blocks[i].timestamp) - hexToDec(blocks[i + 1].timestamp));
+      }
+      const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      document.getElementById("statBlockTime").textContent = avg.toFixed(2);
+    }
+
+    document.getElementById("blockCount").textContent = blocks.length;
+    const tbody = document.getElementById("blocksBody");
+    tbody.innerHTML = "";
+    blocks.forEach(b => {
+      const num = hexToDec(b.number);
+      const txCount = b.transactions ? b.transactions.length : 0;
+      const gasUsed = hexToDec(b.gasUsed);
+      const gasLimit = hexToDec(b.gasLimit);
+      const pct = gasLimit ? ((gasUsed / gasLimit) * 100).toFixed(1) : "0";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="mono-link" onclick="scanQuery('${num}')">#${num.toLocaleString()}</span></td>
+        <td>${timeAgo(hexToDec(b.timestamp))}</td>
+        <td><span class="badge tx">${txCount} txns</span></td>
+        <td>${gasUsed.toLocaleString()} <span style="color:#a9bdfa">(${pct}%)</span></td>
+        <td><span class="mono-link" onclick="scanQuery('${b.miner}')">${shorten(b.miner)}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    setStatus("bad", "connection issue — retrying…");
+    console.error(e);
+  }
+}
+
+function showResultPanel() {
+  document.getElementById("resultPanel").style.display = "block";
+  document.getElementById("resultPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function renderError(msg) {
+  showResultPanel();
+  document.getElementById("resultBody").innerHTML = `<div class="error-box">${msg}</div>`;
+}
+function detailRow(label, value, accent) {
+  return `<div class="detail-row"><div class="detail-label">${label}</div><div class="detail-value${accent ? " accent" : ""}">${value}</div></div>`;
+}
+
+async function scanQuery(rawQuery) {
+  const query = (rawQuery || document.getElementById("searchInput").value || "").trim();
+  if (!query) return;
+  showResultPanel();
+  document.getElementById("resultBody").innerHTML = `<div class="empty-state">Scanning Base for "${query}"…</div>`;
+
+  try {
+    // Block number (plain integer)
+    if (/^\d+$/.test(query)) {
+      const b = await loadBlock("0x" + BigInt(query).toString(16));
+      if (!b) return renderError("No block found with number " + query);
+      renderBlockDetail(b);
+      return;
+    }
+
+    // Tx hash or block hash (0x + 64 hex chars)
+    if (/^0x[0-9a-fA-F]{64}$/.test(query)) {
+      const tx = await rpc("eth_getTransactionByHash", [query]);
+      if (tx) {
+        const receipt = await rpc("eth_getTransactionReceipt", [query]).catch(() => null);
+        renderTxDetail(tx, receipt);
+        return;
+      }
+      const block = await rpc("eth_getBlockByHash", [query, true]);
+      if (block) {
+        renderBlockDetail(block);
+        return;
+      }
+      return renderError("No transaction or block found for hash " + shorten(query, 14));
+    }
+
+    // Address (0x + 40 hex chars)
+    if (/^0x[0-9a-fA-F]{40}$/.test(query)) {
+      const [balanceHex, codeHex, nonceHex] = await Promise.all([
+        rpc("eth_getBalance", [query, "latest"]),
+        rpc("eth_getCode", [query, "latest"]),
+        rpc("eth_getTransactionCount", [query, "latest"])
+      ]);
+      renderAddressDetail(query, balanceHex, codeHex, nonceHex);
+      return;
+    }
+
+    renderError("Couldn't recognize that input. Try a block number, a 66-character transaction hash, or a 42-character address.");
+  } catch (e) {
+    renderError("RPC lookup failed: " + e.message);
+  }
+}
+
+function renderBlockDetail(b) {
+  const num = hexToDec(b.number);
+  const txCount = b.transactions ? b.transactions.length : 0;
+  const gasUsed = hexToDec(b.gasUsed);
+  const gasLimit = hexToDec(b.gasLimit);
+  document.getElementById("resultBody").innerHTML = `
+    <div class="detail show">
+      <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value"><span class="badge block">BLOCK</span></div></div>
+      ${detailRow("Block Number", "#" + num.toLocaleString(), true)}
+      ${detailRow("Timestamp", new Date(hexToDec(b.timestamp) * 1000).toUTCString())}
+      ${detailRow("Transactions", txCount)}
+      ${detailRow("Gas Used / Limit", gasUsed.toLocaleString() + " / " + gasLimit.toLocaleString())}
+      ${detailRow("Base Fee", b.baseFeePerGas ? gweiFromHex(b.baseFeePerGas) + " gwei" : "n/a")}
+      ${detailRow("Miner / Fee Recipient", b.miner)}
+      ${detailRow("Block Hash", b.hash)}
+      ${detailRow("Parent Hash", b.parentHash)}
+    </div>
+  `;
+}
+
+function renderTxDetail(tx, receipt) {
+  const status = receipt ? (hexToDec(receipt.status) === 1 ? "Success" : "Failed") : "Pending";
+  document.getElementById("resultBody").innerHTML = `
+    <div class="detail show">
+      <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value"><span class="badge tx">TRANSACTION</span></div></div>
+      ${detailRow("Status", status, status === "Success")}
+      ${detailRow("Tx Hash", tx.hash)}
+      ${detailRow("Block Number", tx.blockNumber ? hexToDec(tx.blockNumber).toLocaleString() : "pending")}
+      ${detailRow("From", tx.from)}
+      ${detailRow("To", tx.to || "(contract creation)")}
+      ${detailRow("Value", weiHexToEth(tx.value) + " ETH", true)}
+      ${detailRow("Gas Price", gweiFromHex(tx.gasPrice) + " gwei")}
+      ${receipt ? detailRow("Gas Used", hexToDec(receipt.gasUsed).toLocaleString()) : ""}
+      ${detailRow("Nonce", hexToDec(tx.nonce))}
+    </div>
+  `;
+}
+
+function renderAddressDetail(address, balanceHex, codeHex, nonceHex) {
+  const isContract = codeHex && codeHex !== "0x";
+  document.getElementById("resultBody").innerHTML = `
+    <div class="detail show">
+      <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value"><span class="badge ${isContract ? 'block' : 'tx'}">${isContract ? "CONTRACT" : "ADDRESS"}</span></div></div>
+      ${detailRow("Address", address, true)}
+      ${detailRow("Balance", weiHexToEth(balanceHex) + " ETH", true)}
+      ${detailRow("Transaction Count", hexToDec(nonceHex))}
+      ${detailRow("Has Contract Code", isContract ? "Yes" : "No")}
+      ${isContract ? detailRow("Bytecode Size", ((codeHex.length - 2) / 2).toLocaleString() + " bytes") : ""}
+    </div>
+  `;
+}
+
+document.getElementById("searchBtn").addEventListener("click", () => scanQuery());
+document.getElementById("searchInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") scanQuery();
+});
+
+refreshLatestBlocks();
+setInterval(refreshLatestBlocks, 4000);
+</script>
+
+</body>
+</html>
